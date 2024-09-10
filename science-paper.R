@@ -1,3 +1,21 @@
+library(data.table)
+library(ggplot2)
+library(ggrepel)
+library(ggh4x)
+library(forcats)
+library(tidycensus)
+library(readxl)
+library(purrr)
+library(dplyr)
+library(intervalaverage)
+library(mgcv)
+library(tidyr)
+library(scales)
+library(tagger)
+library(GGally)
+
+set.seed(66)
+
 states.dc.pr.DT <- data.table(
   geography.abb=c(state.abb, 'DC', 'PR'),
   geography.name=c(state.name, 'District of Columbia', 'Puerto Rico')
@@ -6,8 +24,9 @@ states.dc.pr.DT <- data.table(
 acs1.loaded.variables.DT <- data.table( load_variables(2022, dataset='acs1') )
 acs1.target.variables.DT <- acs1.loaded.variables.DT[toupper(concept)=='EMPLOYMENT STATUS BY DISABILITY STATUS AND TYPE']
 
+acs1.years <- do.call(lst, as.list(as.numeric(c(2010:2019, 2021:2022))))
 us.employment.estimates.and.moe.DT <- map_dfr(
-  years,
+  acs1.years,
   ~get_acs(geography='us', variables=acs1.target.variables.DT[ , name], survey='acs1', year=.x),
   .id='year'
 ) %>% data.table
@@ -185,7 +204,7 @@ us.programs.fig <- ggplot(
   ylab('Community\nRehab Programs') +
   xlab('Date') +
   theme_grey(base_size=12)
-employment.fig1 <- egg::ggarrange(
+us.timeseries.fig1 <- egg::ggarrange(
   us.employment.fig +
     tag_facets(position='tr', tag_suffix='', tag_pool='A') +
     theme(axis.title.x=element_blank(), axis.text.x=element_blank()),
@@ -199,12 +218,12 @@ employment.fig1 <- egg::ggarrange(
     tag_facets(position='tr', tag_suffix='', tag_pool='D'),
   ncol=1
 )
-ggsave(width=4, height=8, filename='employment-fig1.png', plot=employment.fig1)
+ggsave(width=4, height=8, filename='us-timeseries-fig1.png', plot=us.timeseries.fig1)
 
 #############
 
 states.employment.estimates.and.moe.DT <- map_dfr(
-  years,
+  acs1.years,
   ~get_acs(geography='state', variables=acs1.target.variables.DT[ , name], survey='acs1', year=.x),
   .id='year'
 ) %>% data.table
@@ -271,26 +290,26 @@ ggplot(states.employment.analysis.dataset.wide.DT[cognitive==1], aes(x=as.Date(p
   theme_grey(base_size=12)
 
 states.cog.employmentratio.lm.DT <- states.employment.analysis.dataset.wide.DT[cognitive==1 & 2015 <= year & year <= 2022][
-  , {LM <- lm(employmentratio.estimate ~ year, data=.SD)
+  , {LM <- lm(employmentratio.estimate ~ I(year-2019), data=.SD)
     PRED <- predict(LM, newdata=data.table(year=2019), se.fit=TRUE)
     list(
-      cog.employmentratio.slope.estimate=coef(LM)['year'],
-      cog.employmentratio.slope.se=summary(LM)$coefficients['year', 2],
-      cog.employmentratio.mid.estimate=PRED$fit[1],
-      cog.employmentraito.mid.se=PRED$se.fit[1]
+      cog.employmentratio.slope.estimate=coef(LM)['I(year - 2019)'],
+      cog.employmentratio.slope.se=summary(LM)$coefficients['I(year - 2019)', 2],
+      cog.employmentratio.mid.estimate=coef(LM)['(Intercept)'],
+      cog.employmentraito.mid.se=summary(LM)$coefficients['(Intercept)', 2]
     )
   },
   by=NAME
 ]
 states.cog.employmentratio.lm.DT <- states.dc.pr.DT[states.cog.employmentratio.lm.DT, on=c(geography.name='NAME')]
 whd.crp.workers.per.capita.by.state.lm.DT <- whd.crp.workers.by.state.DT[geography.abb != 'GU' & 2015 <= year & year <= 2022][ # Guam not in pop estimates
-  , {LM <- lm(workers.paid.submin.per.capita ~ year, weights=1/list.dates.per.year, data=.SD) 
+  , {LM <- lm(workers.paid.submin.per.capita ~ I(year-2019), weights=1/list.dates.per.year, data=.SD) 
     PRED <- predict(LM, newdata=data.table(year=2019), se.fit=TRUE)
     list(
-      crp.workers.per.capita.slope.estimate=coef(LM)['year'],
-      crp.workers.per.capita.se=summary(LM)$coefficients['year', 2],
-      crp.workers.per.capita.mid.estimate=PRED$fit[1],
-      crp.workers.per.capita.mid.se=PRED$se.fit
+      crp.workers.per.capita.slope.estimate=coef(LM)['I(year - 2019)'],
+      crp.workers.per.capita.se=summary(LM)$coefficients['I(year - 2019)', 2],
+      crp.workers.per.capita.mid.estimate=coef(LM)['(Intercept)'],
+      crp.workers.per.capita.mid.se=summary(LM)$coefficients['(Intercept)', 2]
     )
   },
   by=geography.abb
@@ -298,8 +317,8 @@ whd.crp.workers.per.capita.by.state.lm.DT <- whd.crp.workers.by.state.DT[geograp
 
 states.cor.analysis.DT <- states.cog.employmentratio.lm.DT[whd.crp.workers.per.capita.by.state.lm.DT, on='geography.abb']
 scatter.fig2 <- ggpairs(states.cor.analysis.DT[, .(geography.abb,
-  `CRP Subminimum Wage\nWorkers per 100k pop\n(2019 fit)`=1e5*crp.workers.per.capita.mid.estimate, `CRP Subminimum Wage\nWorkers per 100k pop\n(slope per year)`=1e5*crp.workers.per.capita.slope.estimate,
-  `Cognitive Disability\nEmployment Ratio\n(2019 fit)`=cog.employmentratio.mid.estimate, `Cognitive Disability\nEmployment Ratio\n (slope per year)`=cog.employmentratio.slope.estimate
+  `CRP Subminimum Wage\nWorkers per 100k pop\n(Intercept)`=1e5*crp.workers.per.capita.mid.estimate, `CRP Subminimum Wage\nWorkers per 100k pop\n(slope: change per year)`=1e5*crp.workers.per.capita.slope.estimate,
+  `Cognitive Disability\nEmployment Ratio\n(Intercept)`=cog.employmentratio.mid.estimate, `Cognitive Disability\nEmployment Ratio\n (slope: change per year)`=cog.employmentratio.slope.estimate
   )],
   columns=2:5,
   lower = list(continuous=\(data, mapping, ...) ggally_points(data, mapping, ..., color=NA) + geom_text(aes(label=geography.abb), size=3)),
