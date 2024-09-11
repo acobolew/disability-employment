@@ -204,7 +204,7 @@ us.programs.fig <- ggplot(
   ylab('Community\nRehab Programs') +
   xlab('Date') +
   theme_grey(base_size=12)
-us.timeseries.fig1 <- egg::ggarrange(
+fig.1.us.timeseries <- egg::ggarrange(
   us.employment.fig +
     tag_facets(position='tr', tag_suffix='', tag_pool='A') +
     theme(axis.title.x=element_blank(), axis.text.x=element_blank()),
@@ -218,7 +218,7 @@ us.timeseries.fig1 <- egg::ggarrange(
     tag_facets(position='tr', tag_suffix='', tag_pool='D'),
   ncol=1
 )
-ggsave(width=4, height=8, filename='us-timeseries-fig1.png', plot=us.timeseries.fig1)
+ggsave(width=4, height=8, filename='fig-1-us-timeseries.png', plot=fig.1.us.timeseries)
 
 #############
 
@@ -275,20 +275,6 @@ states.employment.analysis.dataset.wide.DT[ , disability.status := factor(
   labels=c('No Disability', 'Hearing', 'Vision', 'Cognitive', 'Ambulatory', 'Self-care', 'Independent Living')
 )]
 
-ggplot(states.employment.analysis.dataset.wide.DT[cognitive==1], aes(x=as.Date(paste0(year, '-07-01')))) +
-  facet_wrap(~NAME) +
-  scale_shape_manual(values=dis.type.shapes) +
-  scale_fill_manual(values=okabemodfills) +
-  scale_color_manual(values=okabemod) +
-  scale_x_date(limits=as.Date(c('2010-01-01', '2030-01-01')), breaks=seq(as.Date('2010-01-01'), as.Date('2025-01-01'), by='5 year'), minor_breaks=NULL) +
-  # scale_x_continuous(limits=c(2010,2030), breaks=seq(2010, 2025, by=5), minor_breaks=NULL) +
-  # expand_limits(y=0) +
-  geom_line(aes(y=employmentratio.estimate, color=disability.status), show.legend=FALSE) +
-  geom_linerange(aes(color=disability.status, ymin=employmentratio.estimate-employmentratio.moe/qnorm(.95)*qnorm(.975), ymax=employmentratio.estimate+employmentratio.moe/qnorm(.95)*qnorm(.975)), show.legend=FALSE) +
-  geom_point(aes(y=employmentratio.estimate, color=disability.status, fill=disability.status, shape=disability.status), show.legend=FALSE) +
-  ylab('Employment Ratio\nre People with\nNo Disability') +
-  theme_grey(base_size=12)
-
 states.cog.employmentratio.lm.DT <- states.employment.analysis.dataset.wide.DT[cognitive==1 & 2015 <= year & year <= 2022][
   , {LM <- lm(employmentratio.estimate ~ I(year-2019), data=.SD)
     PRED <- predict(LM, newdata=data.table(year=2019), se.fit=TRUE)
@@ -316,7 +302,7 @@ whd.crp.workers.per.capita.by.state.lm.DT <- whd.crp.workers.by.state.DT[geograp
 ]
 
 states.cor.analysis.DT <- states.cog.employmentratio.lm.DT[whd.crp.workers.per.capita.by.state.lm.DT, on='geography.abb']
-scatter.fig2 <- ggpairs(states.cor.analysis.DT[, .(geography.abb,
+fig.2.scattermat <- ggpairs(states.cor.analysis.DT[, .(geography.abb,
   `CRP Subminimum Wage\nWorkers per 100k pop\n(Intercept)`=1e5*crp.workers.per.capita.mid.estimate, `CRP Subminimum Wage\nWorkers per 100k pop\n(slope: change per year)`=1e5*crp.workers.per.capita.slope.estimate,
   `Cognitive Disability\nEmployment Ratio\n(Intercept)`=cog.employmentratio.mid.estimate, `Cognitive Disability\nEmployment Ratio\n (slope: change per year)`=cog.employmentratio.slope.estimate
   )],
@@ -324,4 +310,7 @@ scatter.fig2 <- ggpairs(states.cor.analysis.DT[, .(geography.abb,
   lower = list(continuous=\(data, mapping, ...) ggally_points(data, mapping, ..., color=NA) + geom_text(aes(label=geography.abb), size=3)),
   upper = list(continuous = wrap(ggally_cor, alignPercent = 0.8, digits=2))
 ) + theme_gray(base_size=12)
-ggsave(scatter.fig2, width=8, height=8, filename='scatter-fig2.png')
+for(r in 1:fig.2.scattermat$nrow)
+  for(c in 1:fig.2.scattermat$ncol)
+    scatter.fig2[r,c] <- scatter.fig2[r,c] + scale_x_continuous(expand=expand_scale(mult=.1)) + scale_y_continuous(expand=expand_scale(mult=.1))
+ggsave(fig.2.scattermat, width=8, height=8, filename='fig-2-scattermat.png')
