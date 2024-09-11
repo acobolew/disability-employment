@@ -312,5 +312,5 @@ fig.2.scattermat <- ggpairs(states.cor.analysis.DT[, .(geography.abb,
 ) + theme_gray(base_size=12)
 for(r in 1:fig.2.scattermat$nrow)
   for(c in 1:fig.2.scattermat$ncol)
-    scatter.fig2[r,c] <- scatter.fig2[r,c] + scale_x_continuous(expand=expand_scale(mult=.1)) + scale_y_continuous(expand=expand_scale(mult=.1))
+    fig.2.scattermat[r,c] <- fig.2.scattermat[r,c] + scale_x_continuous(expand=expand_scale(mult=.1)) + scale_y_continuous(expand=expand_scale(mult=.1))
 ggsave(fig.2.scattermat, width=8, height=8, filename='fig-2-scattermat.png')
