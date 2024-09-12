@@ -21,10 +21,10 @@ states.dc.pr.DT <- data.table(
   geography.name=c(state.name, 'District of Columbia', 'Puerto Rico')
 )
 
-acs1.loaded.variables.DT <- data.table( load_variables(2022, dataset='acs1') )
+acs1.loaded.variables.DT <- data.table( load_variables(2023, dataset='acs1') )
 acs1.target.variables.DT <- acs1.loaded.variables.DT[toupper(concept)=='EMPLOYMENT STATUS BY DISABILITY STATUS AND TYPE']
 
-acs1.years <- do.call(lst, as.list(as.numeric(c(2010:2019, 2021:2022))))
+acs1.years <- do.call(lst, as.list(as.numeric(c(2010:2019, 2021:2023))))
 us.employment.estimates.and.moe.DT <- map_dfr(
   acs1.years,
   ~get_acs(geography='us', variables=acs1.target.variables.DT[ , name], survey='acs1', year=.x),
@@ -275,7 +275,7 @@ states.employment.analysis.dataset.wide.DT[ , disability.status := factor(
   labels=c('No Disability', 'Hearing', 'Vision', 'Cognitive', 'Ambulatory', 'Self-care', 'Independent Living')
 )]
 
-states.cog.employmentratio.lm.DT <- states.employment.analysis.dataset.wide.DT[cognitive==1 & 2015 <= year & year <= 2022][
+states.cog.employmentratio.lm.DT <- states.employment.analysis.dataset.wide.DT[cognitive==1 & 2015 <= year & year <= 2023][
   , {LM <- lm(employmentratio.estimate ~ I(year-2019), data=.SD)
     PRED <- predict(LM, newdata=data.table(year=2019), se.fit=TRUE)
     list(
@@ -288,7 +288,7 @@ states.cog.employmentratio.lm.DT <- states.employment.analysis.dataset.wide.DT[c
   by=NAME
 ]
 states.cog.employmentratio.lm.DT <- states.dc.pr.DT[states.cog.employmentratio.lm.DT, on=c(geography.name='NAME')]
-whd.crp.workers.per.capita.by.state.lm.DT <- whd.crp.workers.by.state.DT[geography.abb != 'GU' & 2015 <= year & year <= 2022][ # Guam not in pop estimates
+whd.crp.workers.per.capita.by.state.lm.DT <- whd.crp.workers.by.state.DT[geography.abb != 'GU' & 2015 <= year & year <= 2023][ # Guam not in pop estimates
   , {LM <- lm(workers.paid.submin.per.capita ~ I(year-2019), weights=1/list.dates.per.year, data=.SD) 
     PRED <- predict(LM, newdata=data.table(year=2019), se.fit=TRUE)
     list(
