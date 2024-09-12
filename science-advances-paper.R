@@ -220,6 +220,25 @@ fig.1.us.timeseries <- egg::ggarrange(
 )
 ggsave(width=4, height=8, filename='fig-1-us-timeseries.png', plot=fig.1.us.timeseries)
 
+us.employment.analysis.dataset.wide.DT[no.disability==1 & (year==2010 | year == 2023), .(prop.estimate.employed)]
+us.employment.analysis.dataset.wide.DT[cognitive==1 & (year==2010 | year == 2023), .(prop.estimate.employed)]
+us.employment.analysis.dataset.wide.DT[cognitive==1 & (year==2010 | year == 2023), .(employmentratio.estimate)]
+
+us.employment.analysis.dataset.wide.DT[
+  cognitive==1 & (year==2010 | year == 2023)
+  , .(
+      year,
+      diff.propemployed.estimate = prop.estimate.employed - prop.estimate.employed[year==2010],
+      diff.propemployed.moe = moe_sum(prop.moe.employed, prop.moe.employed[year==2010]),
+      denom.estimate.employed,
+      denom.moe.employed
+    )
+][year==2023][ , `:=`(
+  diff.ER.times.pop2023.estimate=diff.propemployed.estimate*denom.estimate.employed,
+  diff.ER.times.pop2023.moe=moe_product(diff.propemployed.estimate, denom.estimate.employed, diff.propemployed.moe, denom.moe.employed)
+)][]
+
+
 #############
 
 states.employment.estimates.and.moe.DT <- map_dfr(
