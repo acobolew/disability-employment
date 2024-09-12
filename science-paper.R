@@ -136,7 +136,7 @@ us.employment.fig <- ggplot(us.employment.analysis.dataset.wide.DT, aes(x=as.Dat
   scale_shape_manual(values=dis.type.shapes) +
   scale_fill_manual(values=okabemodfills) +
   scale_color_manual(values=okabemod) +
-  scale_x_date(limits=as.Date(c('2010-01-01', '2030-01-01')), breaks=seq(as.Date('2010-01-01'), as.Date('2025-01-01'), by='5 year'), minor_breaks=NULL) +
+  scale_x_date(limits=as.Date(c('2010-01-01', '2033-01-01')), breaks=seq(as.Date('2010-01-01'), as.Date('2025-01-01'), by='5 year'), minor_breaks=NULL) +
   # scale_x_continuous(limits=c(2010,2030), breaks=seq(2010, 2025, by=5), minor_breaks=NULL) +
   # expand_limits(y=0) +
   geom_line(aes(y=prop.estimate.employed, color=disability.status), show.legend=FALSE) +
@@ -159,7 +159,7 @@ us.employment.ratio.fig <- ggplot(us.employment.analysis.dataset.wide.DT[no.disa
   scale_shape_manual(values=dis.type.shapes) +
   scale_fill_manual(values=okabemodfills) +
   scale_color_manual(values=okabemod) +
-  scale_x_date(limits=as.Date(c('2010-01-01', '2030-01-01')), breaks=seq(as.Date('2010-01-01'), as.Date('2025-01-01'), by='5 year'), minor_breaks=NULL) +
+  scale_x_date(limits=as.Date(c('2010-01-01', '2033-01-01')), breaks=seq(as.Date('2010-01-01'), as.Date('2025-01-01'), by='5 year'), minor_breaks=NULL) +
   # scale_x_continuous(limits=c(2010,2030), breaks=seq(2010, 2025, by=5), minor_breaks=NULL) +
   # expand_limits(y=0) +
   geom_line(aes(y=employmentratio.estimate, color=disability.status), show.legend=FALSE) +
