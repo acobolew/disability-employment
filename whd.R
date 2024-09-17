@@ -21,7 +21,7 @@ whd.pretableau.crp.data.on.num.certs.only.DT <- (map(excel.sheets.crp.data.on.nu
 }) %>% rbindlist)[!is.na(State)]
 
 
-whd.crp.num.by.state.DT <- rbindlist(list(
+whd.crp.num.by.state.DT  <- rbindlist(list(
   whd.tableau.DT[grep('CRP', `Certificate Type`)][ , .(list.date=as.Date(`List Date`), State)],
   whd.pretableau.both.DT[grep('CRP', `Certification Type`), .(list.date, State)],
   whd.pretableau.crp.DT[ , .(list.date, State)],

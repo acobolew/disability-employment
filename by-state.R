@@ -19,12 +19,12 @@ states.employment.analysis.dataset.wide.DT[
 ]
 fit.ER.states.0 <-
   bam(
-    employmentratio.estimate ~ s(year, NAMEf, bs='fs'),
+    employmentratio.estimate ~ t2(year, NAMEf, bs=c('tp', 're'), full=TRUE),
     data=states.employment.analysis.dataset.wide.DT[cognitive==1]
   )
 fit.ER.states.1 <-
   bam(
-    employmentratio.estimate ~ s(year, NAMEf, bs='fs'),
+    employmentratio.estimate ~ t2(year, NAMEf, bs=c('tp', 're'), full=TRUE),
     weights=w.by.disab.type,
     data=states.employment.analysis.dataset.wide.DT[cognitive==1]
   )
@@ -45,7 +45,7 @@ whd.percapita.crp.workers.by.state.incl.2024.DT <- rbindlist(list(
 ))
 fit.workers.per.capita.0 <-
   bam(
-    workers.paid.submin.per.capita ~ s(year.float, geography.abbf, bs='fs'),
+    workers.paid.submin.per.capita ~ t2(year.float, geography.abbf, bs=c('tp', 're'), full=TRUE),
     data=whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb != 'GU']
   )
 whd.percapita.crp.workers.by.state.incl.2024.preds.DT <- CJ(geography.abbf=unique(whd.crp.workers.by.state.DT[geography.abb != 'GU']$geography.abbf), year.float=seq(2015.25, 2023.25, length=100))
@@ -89,12 +89,18 @@ ggplot(
 )
 ggsave(filename='fig-2-ER-and-workers-by-state.png', width=10, height=14)
 
-whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='MO']
-whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='AR']
-whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='KS']
-whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='OH']
-whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='PA']
-whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='IN']
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='MO'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='AR'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='KS'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='OH'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='PA'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='IN'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+
+whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb=='MO'][ , .(geography.abb, year.float, 1e5*workers.paid.submin.per.capita, list.date, pop*workers.paid.submin.per.capita)]
+whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb=='AR'][ , .(geography.abb, year.float, 1e5*workers.paid.submin.per.capita, list.date, pop*workers.paid.submin.per.capita)]
+whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb=='KS'][ , .(geography.abb, year.float, 1e5*workers.paid.submin.per.capita, list.date, pop*workers.paid.submin.per.capita)]
+whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb=='OH'][ , .(geography.abb, year.float, 1e5*workers.paid.submin.per.capita, list.date, pop*workers.paid.submin.per.capita)]
+whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb=='PA'][ , .(geography.abb, year.float, 1e5*workers.paid.submin.per.capita, list.date, pop*workers.paid.submin.per.capita)]
 
 ggplot(
   states.dc.pr.DT[states.employment.analysis.dataset.wide.DT[cognitive==1], on=c(geography.name='NAME')],

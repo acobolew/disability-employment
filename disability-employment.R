@@ -1,18 +1,3 @@
-library(data.table)
-library(ggplot2)
-library(ggrepel)
-library(ggh4x)
-library(forcats)
-library(tidycensus)
-library(readxl)
-library(purrr)
-library(dplyr)
-library(intervalaverage)
-library(mgcv)
-library(tidyr)
-library(scales)
-library(tagger)
-library(GGally)
 
 set.seed(66)
 
@@ -136,6 +121,10 @@ whd.crp.workers.by.state.DT[ , list.dates.per.year := length(unique(list.date)),
 
 okabe <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 okabemod <- c("#E69F00", "#56B4E9", "#009E73", "#000000", "#0072B2", "#D55E00", "#CC79A7")
+
+#####################################
+# Figure 1 (time series nationally)
+
 names(okabemod) <- c('Cognitive', 'Hearing', 'Vision', 'No Disability', 'Ambulatory', 'Independent Living', 'Self-care')
 okabemodfills <- okabemod
 okabemodfills[c('No Disability', 'Vision', 'Ambulatory', 'Self-care')] <- 'white'
@@ -303,6 +292,100 @@ states.employment.analysis.dataset.wide.DT[ , disability.status := factor(
   labels=c('No Disability', 'Hearing', 'Vision', 'Cognitive', 'Ambulatory', 'Self-care', 'Independent Living')
 )]
 
+#####################################
+# Figure 2 (time series by state)
+
+states.employment.analysis.dataset.wide.DT[ , NAMEf := factor(NAME)]
+states.employment.analysis.dataset.wide.DT[ , w.cog := NULL]
+states.employment.analysis.dataset.wide.DT[cognitive==1 , w.cog := employmentratio.moe^(-2) / sum(employmentratio.moe^(-2))]
+
+fit.ER.states.0 <-
+  bam(
+    employmentratio.estimate ~ t2(year, NAMEf, bs=c('tp', 're'), full=TRUE),
+    data=states.employment.analysis.dataset.wide.DT[cognitive==1]
+  )
+fit.ER.states.1 <-
+  bam(
+    employmentratio.estimate ~ t2(year, NAMEf, bs=c('tp', 're'), full=TRUE),
+    weights=w.cog,
+    data=states.employment.analysis.dataset.wide.DT[cognitive==1]
+  )
+
+states.ER.preds.DT <- CJ(NAMEf=levels(states.employment.analysis.dataset.wide.DT$NAMEf), year=seq(2010, 2023, length=100))
+states.ER.preds.DT[ , c('fit', 'se.fit') := as.data.table(predict(fit.ER.states.1, newdata=states.ER.preds.DT, se.fit=TRUE))]
+states.ER.preds.DT <- states.dc.pr.DT[states.ER.preds.DT, on=c(geography.name='NAMEf')]
+states.ER.preds.DT[ , date := as.Date('2010-07-01') + (year-2010)*365.25]
+
+whd.crp.workers.by.state.DT[geography.abb != 'GU' & year==2023]
+
+whd.crp.workers.by.state.DT[ , year.float := 2010 + as.numeric(list.date-as.Date('2010-07-01'))/365.25]
+whd.crp.workers.by.state.DT[ , geography.abbf := factor(geography.abb)]
+whd.crp.workers.by.state.2024.DT <- pop.est.by.state.DT[year==2023][ , year := 2024][whd.crp.workers.by.state.DT[year==2024], on='geography.abb'][ , workers.paid.submin.per.capita := workers.paid.submin/pop][]
+whd.percapita.crp.workers.by.state.incl.2024.DT <- rbindlist(list(
+  whd.crp.workers.by.state.DT[ year != 2024],
+  whd.crp.workers.by.state.2024.DT[, names(whd.crp.workers.by.state.DT), with=FALSE]
+))
+fit.workers.per.capita.0 <-
+  bam(
+    workers.paid.submin.per.capita ~ t2(year.float, geography.abbf, bs=c('tp', 're'), full=TRUE),
+    data=whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb != 'GU']
+  )
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT <- CJ(geography.abbf=unique(whd.crp.workers.by.state.DT[geography.abb != 'GU']$geography.abbf), year.float=seq(2015.25, 2023.25, length=100))
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[ , c('fit', 'se.fit') := as.data.table(predict(fit.workers.per.capita.0, newdata=whd.percapita.crp.workers.by.state.incl.2024.preds.DT, se.fit=TRUE))]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[ , date := as.Date('2010-07-01') + (year.float-2010)*365.25]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[ , geography.abb := geography.abbf]
+
+
+
+fig.2.ER.and.workers.by.state <- ggplot(
+  states.dc.pr.DT[states.employment.analysis.dataset.wide.DT[cognitive==1], on=c(geography.name='NAME')],
+) +
+  facet_wrap(~geography.abb) +
+  geom_ribbon(data=states.ER.preds.DT, aes(x=date, ymin=fit-se.fit*qnorm(.975), ymax=fit+se.fit*qnorm(.975), fill='Cog Employment Ratio'), alpha=.4) +
+  geom_line(data=states.ER.preds.DT, aes(x=date, y=fit, color='Cog Employment Ratio')) +
+  geom_point(size=4, aes(x=date, y=employmentratio.estimate, color='Cog Employment Ratio', shape='Cog Employment Ratio')) +
+  geom_linerange(aes(x=date, ymin=employmentratio.estimate - employmentratio.moe/qnorm(.95)*qnorm(.975), ymax=employmentratio.estimate + employmentratio.moe/qnorm(.95)*qnorm(.975), color='Cog Employment Ratio') ) +
+  geom_point(size=4, data=whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb != 'GU'], aes(x=list.date, y=1e5*workers.paid.submin.per.capita*.9/300, color='Workers Paid Subminimum Wage per 100k Pop', shape='Workers Paid Subminimum Wage per 100k Pop')) +
+  geom_ribbon(data=whd.percapita.crp.workers.by.state.incl.2024.preds.DT, aes(x=date, ymin=1e5*(fit-se.fit*qnorm(.975))*.9/300, ymax=1e5*(fit+se.fit*qnorm(.975))*.9/300, fill='Workers Paid Subminimum Wage per 100k Pop'), alpha=.4) +
+  geom_line(data=whd.percapita.crp.workers.by.state.incl.2024.preds.DT, aes(x=date, y=1e5*fit*.9/300, color='Workers Paid Subminimum Wage per 100k Pop')) +
+  scale_x_date(breaks=as.Date(paste0(c(2015, 2025), '-01-01')), date_labels='%Y\n%b', expand=expand_scale(mult=.1), minor_breaks=as.Date(paste0(c(2010, 2015, 2020, 2025), '-01-01'))) +
+  scale_y_continuous(
+    breaks=seq(0, .9, by=.3), minor_breaks=seq(0, .9, by=.1), name='◆ Employment Ratio for People with Cognitive Disabilities',
+    sec.axis=sec_axis(~.*300/.9, guide=guide_axis(title='○ Workers Paid Subminimum Wage per 100k Population'))
+  ) +
+  scale_shape_manual(values=c('◆', '○')) +
+  scale_color_manual(values=okabe[1:2]) +
+  scale_fill_manual(values=okabe[1:2]) +
+  theme_gray(base_size=14) +
+  theme(
+    legend.position='none',
+    axis.text.y.left=element_text(color=okabe[1]),
+    axis.text.y.right=element_text(color=okabe[2]),
+    axis.ticks.y.left=element_line(color=okabe[1]),
+    axis.ticks.y.right=element_line(color=okabe[2]),
+    axis.title.y.left=element_text(color=okabe[1]),
+    axis.title.y.right=element_text(color=okabe[2]),
+    axis.title.x=element_blank()
+  )
+ggsave(fig.2.ER.and.workers.by.state, filename='fig-2-ER-and-workers-by-state.png', width=10, height=14)
+
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='MO'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='AR'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='KS'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='OH'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='PA'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+whd.percapita.crp.workers.by.state.incl.2024.preds.DT[geography.abb=='IN'][ , .(geography.abbf, year.float, 1e5*fit, date)]
+
+whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb=='MO'][ , .(geography.abb, year.float, 1e5*workers.paid.submin.per.capita, list.date, pop*workers.paid.submin.per.capita)]
+whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb=='AR'][ , .(geography.abb, year.float, 1e5*workers.paid.submin.per.capita, list.date, pop*workers.paid.submin.per.capita)]
+whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb=='KS'][ , .(geography.abb, year.float, 1e5*workers.paid.submin.per.capita, list.date, pop*workers.paid.submin.per.capita)]
+whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb=='OH'][ , .(geography.abb, year.float, 1e5*workers.paid.submin.per.capita, list.date, pop*workers.paid.submin.per.capita)]
+whd.percapita.crp.workers.by.state.incl.2024.DT[geography.abb=='PA'][ , .(geography.abb, year.float, 1e5*workers.paid.submin.per.capita, list.date, pop*workers.paid.submin.per.capita)]
+
+#####################################
+# Figure 3 (scatterplot matrix)
+
+
 states.cog.employmentratio.lm.DT <- states.employment.analysis.dataset.wide.DT[cognitive==1 & 2015 <= year & year <= 2023][
   , {LM <- lm(employmentratio.estimate ~ I(year-2019), data=.SD)
     PRED <- predict(LM, newdata=data.table(year=2019), se.fit=TRUE)
@@ -330,7 +413,7 @@ whd.crp.workers.per.capita.by.state.lm.DT <- whd.crp.workers.by.state.DT[geograp
 ]
 
 states.cor.analysis.DT <- states.cog.employmentratio.lm.DT[whd.crp.workers.per.capita.by.state.lm.DT, on='geography.abb']
-fig.2.scattermat <- ggpairs(states.cor.analysis.DT[, .(geography.abb,
+fig.3.scattermat <- ggpairs(states.cor.analysis.DT[, .(geography.abb,
   `CRP Subminimum Wage\nWorkers per 100k pop\n(Intercept)`=1e5*crp.workers.per.capita.mid.estimate, `CRP Subminimum Wage\nWorkers per 100k pop\n(slope: change per year)`=1e5*crp.workers.per.capita.slope.estimate,
   `Cognitive Disability\nEmployment Ratio\n(Intercept)`=cog.employmentratio.mid.estimate, `Cognitive Disability\nEmployment Ratio\n (slope: change per year)`=cog.employmentratio.slope.estimate
   )],
@@ -338,7 +421,7 @@ fig.2.scattermat <- ggpairs(states.cor.analysis.DT[, .(geography.abb,
   lower = list(continuous=\(data, mapping, ...) ggally_points(data, mapping, ..., color=NA) + geom_text(aes(label=geography.abb), size=3)),
   upper = list(continuous = wrap(ggally_cor, alignPercent = 0.8, digits=2))
 ) + theme_gray(base_size=12)
-for(r in 1:fig.2.scattermat$nrow)
-  for(c in 1:fig.2.scattermat$ncol)
-    fig.2.scattermat[r,c] <- fig.2.scattermat[r,c] + scale_x_continuous(expand=expand_scale(mult=.1)) + scale_y_continuous(expand=expand_scale(mult=.1))
-ggsave(fig.2.scattermat, width=8, height=8, filename='fig-2-scattermat.png')
+for(r in 1:fig.3.scattermat$nrow)
+  for(c in 1:fig.3.scattermat$ncol)
+    fig.3.scattermat[r,c] <- fig.3.scattermat[r,c] + scale_x_continuous(expand=expand_scale(mult=.1)) + scale_y_continuous(expand=expand_scale(mult=.1))
+ggsave(fig.3.scattermat, width=8, height=8, filename='fig-3-scattermat.png')
