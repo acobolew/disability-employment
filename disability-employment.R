@@ -93,6 +93,15 @@ whd.pretableau.crp.data.on.num.certs.only.DT <- (map(excel.sheets.crp.data.on.nu
   cbind(list.date=as.Date(sheet.name), read_excel('whd_data/from archive.org/CRP data on num certs only.xlsx', sheet.name) %>% select('State'))
 }) %>% rbindlist)[!is.na(State)]
 
+# correct apparent error in data:
+# likely error with a certificate holder on two dates:
+whd.pretableau.crp.DT[`Cert Num`=='05-03943-S-027' & list.date=='2015-10-01' & `Number of Workers Paid Subminimum Wages`==2075, `Number of Workers Paid Subminimum Wages` := 107]
+whd.pretableau.crp.DT[`Cert Num`=='05-03943-S-027' & list.date=='2016-01-01' & `Number of Workers Paid Subminimum Wages`==2075, `Number of Workers Paid Subminimum Wages` := 107]
+# definitely error with a certificate holder on one date:
+whd.pretableau.crp.DT[`Cert Num`=='05-03105-S-033' & list.date=='2016-01-01' & `Number of Workers Paid Subminimum Wages`==13674, `Number of Workers Paid Subminimum Wages` := 136]
+# likely error with a certificate holder on on one date:
+whd.pretableau.crp.DT[`Cert Num`=='05-11782-S-073' & list.date=='2016-01-01' & `Number of Workers Paid Subminimum Wages`==2431, `Number of Workers Paid Subminimum Wages` := 31]
+
 whd.crp.programs.by.state.DT  <- rbindlist(list(
   whd.tableau.DT[grep('CRP', `Certificate Type`)][ , .(list.date=as.Date(`List Date`), State)],
   whd.pretableau.both.DT[grep('CRP', `Certification Type`), .(list.date, State)],
