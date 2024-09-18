@@ -1,7 +1,8 @@
 ---
-editor_options: 
-  markdown: 
+editor_options:
+  markdown:
     wrap: 72
+output: pdf_document
 ---
 
 This repository holds files for downloading, important, and analyzing
@@ -42,5 +43,4 @@ one directly from Department of Labor web site):
 
 4.  "whd_data/14(c) Certificate Holder Archived List_data.xlsx": Data
     downloaded directly from Department of Labor tableau site. Covers
-    dates 2021-10-01 through 2024-10-01. Data S5. (“URLs.xlsx”) URLs
-    from which Department of Labor data were downloaded.
+    dates 2021-10-01 through 2024-10-01.
