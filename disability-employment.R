@@ -1,6 +1,7 @@
 
-set.seed(66)
+# Core analyses of paper, reflected in Figures 1-3
 
+set.seed(66)
 states.dc.pr.DT <- data.table(
   geography.abb=c(state.abb, 'DC', 'PR'),
   geography.name=c(state.name, 'District of Columbia', 'Puerto Rico')
@@ -17,7 +18,7 @@ us.employment.estimates.and.moe.DT <- map_dfr(
 ) %>% data.table
 
 us.employment.linked.data.DT <- acs1.target.variables.DT[us.employment.estimates.and.moe.DT, on=c(name='variable')]
-us.employment.analysis.dataset.DT <- us.employment.linked.data.DT[grepl('With a disability:!!|No disability', label)]
+us.employment.analysis.dataset.DT <- us.employment.linked.data.DT[grepl('With a disability:$|No disability|With a disability:!!With a cognitive difficulty', label)]
 
 us.employment.analysis.dataset.DT[, employed := as.numeric(grepl('Employed', label))]
 us.employment.analysis.dataset.DT[, unemployed := as.numeric(grepl('Unemployed', label))]
@@ -41,6 +42,7 @@ us.employment.analysis.dataset.wide.DT <- us.employment.analysis.dataset.DT %>%
   ) %>% data.table
 
 us.employment.analysis.dataset.wide.DT[, no.disability := as.numeric(grepl('No disability', rest.of.variable))]
+us.employment.analysis.dataset.wide.DT[, any.disability := as.numeric(grepl('With a disability:$', rest.of.variable))]
 us.employment.analysis.dataset.wide.DT[, hearing := as.numeric(grepl('With a hearing difficulty', rest.of.variable))]
 us.employment.analysis.dataset.wide.DT[, vision := as.numeric(grepl('With a vision difficulty', rest.of.variable))]
 us.employment.analysis.dataset.wide.DT[, cognitive := as.numeric(grepl('With a cognitive difficulty', rest.of.variable))]
@@ -58,9 +60,9 @@ us.employment.analysis.dataset.wide.DT[
 by=year]
 us.employment.analysis.dataset.wide.DT[ , date := as.Date(paste0(year, '-07-01'))]
 us.employment.analysis.dataset.wide.DT[ , disability.status := factor(
-  ifelse(no.disability==1, 'no.disability', ifelse(hearing==1, 'hearing', ifelse(vision==1, 'vision', ifelse(cognitive==1, 'cognitive', ifelse(ambulatory==1, 'ambulatory', ifelse(selfcare==1, 'selfcare', ifelse(independentliving==1, 'independentliving', NA_character_))))))),
-  levels=c('no.disability', 'hearing', 'vision', 'cognitive', 'ambulatory', 'selfcare', 'independentliving'),
-  labels=c('No Disability', 'Hearing', 'Vision', 'Cognitive', 'Ambulatory', 'Self-care', 'Independent Living')
+  ifelse(no.disability==1, 'no.disability', ifelse(any.disability==1, 'any.disability', ifelse(cognitive==1, 'cognitive', NA_character_))),
+  levels=c('no.disability', 'any.disability', 'cognitive'),
+  labels=c('No Disability', 'Any Disability', 'Cognitive Disability')
 )]
 
 
@@ -120,15 +122,15 @@ whd.crp.workers.by.state.DT[ , list.dates.per.year := length(unique(list.date)),
 
 
 okabe <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-okabemod <- c("#E69F00", "#56B4E9", "#009E73", "#000000", "#0072B2", "#D55E00", "#CC79A7")
+okabemod <- c("#E69F00", "#56B4E9", "#009E73", "#000000", "#0072B2", "#D55E00", "#CC79A7")[c(1,2,4)]
 
 #####################################
 # Figure 1 (time series nationally)
 
-names(okabemod) <- c('Cognitive', 'Hearing', 'Vision', 'No Disability', 'Ambulatory', 'Independent Living', 'Self-care')
+names(okabemod) <- c('Cognitive Disability', 'Any Disability', 'No Disability')
 okabemodfills <- okabemod
-okabemodfills[c('No Disability', 'Vision', 'Ambulatory', 'Self-care')] <- 'white'
-dis.type.shapes <- c('No Disability'=21, Hearing=24, Vision=22, Cognitive=25, Ambulatory=24, 'Independent Living'=22, 'Self-care'=25)
+okabemodfills[c('No Disability')] <- 'white'
+dis.type.shapes <- c('No Disability'=21, 'Any Disability'=22, 'Cognitive Disability'=25)
 
 us.employment.fig <- ggplot(us.employment.analysis.dataset.wide.DT, aes(x=as.Date(paste0(year, '-07-01')))) +
   scale_shape_manual(values=dis.type.shapes) +
@@ -140,7 +142,7 @@ us.employment.fig <- ggplot(us.employment.analysis.dataset.wide.DT, aes(x=as.Dat
   geom_line(aes(y=prop.estimate.employed, color=disability.status), show.legend=FALSE) +
   geom_linerange(aes(color=disability.status, ymin=prop.estimate.employed-prop.moe.employed/qnorm(.95)*qnorm(.975), ymax=prop.estimate.employed+prop.moe.employed/qnorm(.95)*qnorm(.975)), show.legend=FALSE) +
   geom_point(aes(y=prop.estimate.employed, color=disability.status, fill=disability.status, shape=disability.status), show.legend=FALSE) +
-  geom_text_repel(
+  geom_text(
     data=us.employment.analysis.dataset.wide.DT[year==max(year)],
     aes(label=disability.status, color=disability.status, y=prop.estimate.employed),
     direction='y',
@@ -163,7 +165,7 @@ us.employment.ratio.fig <- ggplot(us.employment.analysis.dataset.wide.DT[no.disa
   geom_line(aes(y=employmentratio.estimate, color=disability.status), show.legend=FALSE) +
   geom_linerange(aes(color=disability.status, ymin=employmentratio.estimate-employmentratio.moe/qnorm(.95)*qnorm(.975), ymax=employmentratio.estimate+employmentratio.moe/qnorm(.95)*qnorm(.975)), show.legend=FALSE) +
   geom_point(aes(y=employmentratio.estimate, color=disability.status, fill=disability.status, shape=disability.status), show.legend=FALSE) +
-  geom_text_repel(
+  geom_text(
     data=us.employment.analysis.dataset.wide.DT[no.disability==0][year==max(year)],
     aes(label=disability.status, color=disability.status, y=employmentratio.estimate),
     direction='y',
