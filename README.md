@@ -13,7 +13,17 @@ conducted in R.
 
 "disability-employment.R" downloads census data (including American
 Community Survey data), imports and cleans Department of Labor data from
-xlsx sheets, conducts analysis, and produces figures
+xlsx sheets, conducts analysis, and produces figures.
+This file conducts the core analyses of the paper, feeding Figs 1-3
+
+"calculate-pums-sample-size.R" calculates the sample size of the PUMS microdata
+subsample of the ACS, in order to get a lower bound of the number of people
+(overall and by disability status) in the ACS dataset. (The PUMS microdata
+has about two-thirds of the people in the overall ACS dataset.) This file feeds
+Table 1.
+
+"demographics.R" calculates demographic info (sex, dichotomized age, ethnicity,
+race) for the ACS population, by disability status. This file feeds Tables 2-3.
 
 URLs.xlsx lists the URLs where all Department of Labor data were
 downloaded. This includes data downloaded directly from the Department
